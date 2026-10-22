@@ -1,5 +1,7 @@
 # hotkey
 
+📖 [《HotKey 源码实战》在线阅读](https://aias00.github.io/hotkey-book/) · [下载 EPUB](https://aias00.github.io/hotkey-book/hotkey-sourcebook.epub) · [书稿与构建说明](book/README.txt)
+
 备注：有需要存储海量日志的场景，秒级GB级或数十GB级，可关注我的另一个开源项目[JLog](https://gitee.com/jd-platform-opensource/jlog)，较ELK系列套件在处理日志方面提升10倍性能，且存储降低70%以上。
 
 以下为hotkey相关

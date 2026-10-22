@@ -1,0 +1,15 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第二章 建立源码地图</h1><p>根 pom.xml 声明 common、client、worker、dashboard 和 sample 五个模块。common 不是独立服务，它提供消息、规则、编解码与配置中心抽象。client 嵌入业务进程；worker 是计算节点；dashboard 是管理应用；sample 展示接入方式。将这五个模块都理解成需要单独部署的服务，会从一开始就混淆调用关系。</p>
+<h2>数据怎样流动</h2><pre>业务请求
+  → JdHotKeyStore：查询本地状态并提交探测
+  → TurnKeyCollector：本机同键累加
+  → NettyKeyPusher：按 worker 分组发送
+  → HotKeyFilter → KeyProducer → KeyConsumer
+  → KeyListener → SlidingWindow：判热
+  → IPusher：向客户端和管理侧传播
+  → DefaultNewKeyListener：建立本地热点标记
+  → 业务回源并 smartSet：填充真正的值</pre>
+<p>这张图把探测与值填充分开。worker 接收的是键和计数，不会替业务查询商品库。即使所有客户端都收到了同一热点键，它们的本地业务值也可能在不同时间加载、不同时间更新。</p>
+<h2>控制面与数据面</h2><p>etcd 承担发现、规则与相关事件协调，Netty 长连接承担高频消息。dashboard 提供规则管理与统计展示，同时依赖 MySQL 保存管理数据。不要把 dashboard 图表刷新速度当成客户端收到热点的速度；两条路径的批处理周期和存储步骤不同。</p>
+<p>源码入口建议按 ClientStarter.startPipeline、JdHotKeyStore.getValue、NettyKeyPusher.send、HotKeyFilter.chain、KeyConsumer.beginConsume、KeyListener.newKey、DefaultNewKeyListener.newKey 的顺序打开。遇到 DTO 时再回 common 查字段，比从所有工具类逐个阅读更快。</p>
+<h2>阅读注释时保持核对</h2><p>ClientStarter 的字段注释提到缓存默认五万，但 Builder 实际把 caffeineSize 初始化为 200000。JdHotKeyStore 的临期注释提到一秒，表达式却使用 2000 毫秒。类似差异说明源码书必须以执行表达式为依据。升级依赖或切换分支后，这些结论也应重新核对。</p>
+<h2>练习</h2><p>在自己的 IDE 中给上面七个方法加书签。选择一个 sku__42 键，分别记录它在哪些位置携带 appName、count 和 createTime。不要仅凭类名推断每个时间戳的含义。</p></section>

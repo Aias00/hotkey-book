@@ -1,0 +1,8 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第六章 worker 与滑动窗口</h1><p>KeyConsumer 从 DispatcherConfig.QUEUE 获取模型。删除模型走 removeKey，普通模型走 newKey，处理后递增 totalDealCount。这个计数反映处理模型，不天然等于原始请求次数。KeyListener 根据 appName、keyType 和 key 拼接内部标识，以隔离不同应用与类型。</p>
+<h2>判热状态机</h2><p>newKey 先查询 hotCache，近期已热则直接返回；否则取得或创建 SlidingWindow，调用 addCount(model.getCount())。未达阈值时把窗口放回缓存以刷新保留时间；达到阈值时记录热状态、移除计算窗口、重写模型创建时间，并遍历 IPusher 发送通知。</p>
+<p>判断近期已热与写入热状态不是同一个原子操作。源码注释明确讨论并发下同键可能触发重复推送。addCount 同步保证一次窗口求和内部互斥，却没有把整个 KeyListener.newKey 包成单一临界区。重复通知的业务影响需结合下一章的默认值重置理解。</p>
+<h2>环形时间片</h2><p>SlidingWindow(duration, threshold) 对不超过五秒的 duration 使用五个片，每片 duration × 200 毫秒；超过五秒使用十个片，每片 duration × 100 毫秒，并将大于六百秒的 duration 截为六百秒。底层数组长度是窗口片数的两倍。</p>
+<p>以两秒、阈值十次为例：片长四百毫秒，窗口包含五片，数组共十格。addCount 找到当前格，清空前方半圈，给当前格加上本次批次计数，再加上前面四格。总和大于等于十返回 true。间隔超过完整窗口时先 reset，避免把沉睡很久的旧计数重新读入。</p>
+<h2>近似而非逐请求时间轴</h2><p>窗口保存的是时间片计数，不保存每次请求的精确时间。同一片里的请求具有相同的淘汰粒度。客户端还先把多次调用合并为批次，worker 按处理时刻加入窗口；因此它测的是经过上报与排队后的近似流量。对恰好卡在时间边界的请求，不应要求与精确日志回放完全一致。</p>
+<p>实现还用 int sum 累加 AtomicLong 格子的值，极大计数存在整型溢出的风险。正常阈值与批次应远低于此范围；若计划复用窗口处理超大计数，建议改用 long 并增加边界实验。不要由 AtomicLong 的类型推断整个计算链路都不会溢出。</p>
+<h2>练习</h2><p>手画十格数组，依次在第零、第一和第五片加数。每次标出被清空的格与参与求和的格，再说明闲置三秒后下一次 addCount 会发生什么。</p></section>

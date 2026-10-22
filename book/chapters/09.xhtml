@@ -1,0 +1,16 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第九章 用实验解释“热”</h1><p>先为 sample 配置 sku__ 前缀规则：两秒十次，保留六十秒。sample 的 TestController 暴露 /hotKey，调用 isHotKey 并返回 isHot 或 noHot。它只观察身份，不会替我们缓存商品值，因此无需先搭建商品数据库即可验证主链路。</p>
+<h2>实验一：从冷到热</h2><pre>curl 'http://127.0.0.1:9999/hotKey?key=sku__42'
+python3 - &lt;&lt;'PY'
+import time
+import urllib.request
+for _ in range(40):
+    with urllib.request.urlopen(
+        'http://127.0.0.1:9999/hotKey?key=sku__42', timeout=3
+    ) as response:
+        print(response.read().decode())
+    time.sleep(0.05)
+PY</pre><p>初期可能返回 noHot，随后出现 isHot。具体第几次变热取决于批量上报、调度和网络。记录真实结果，不要预先写死“第十次必定 isHot”：第十次调用参与探测不等于推送已经完成。</p>
+<h2>实验二：不匹配规则</h2><p>改用 other__42，保持同样请求频率。若没有匹配它的其他规则，应持续不热。这个对照用来区分“探测链路故障”和“键本来不在探测范围”。实验前排除通配规则，否则对照失去意义。</p>
+<h2>实验三：集群汇总</h2><p>启动两个不同端口的 sample 实例，使用同一 appName。将同一键的请求均匀发给它们，使每个实例单独都不足阈值而总量超过阈值。确认两个实例连接相同 worker 集合，并分别观察回调与 isHot。若两边规则不一致，先修配置再解释算法。</p>
+<h2>实验四：身份与值</h2><p>给业务读取示例增加回源计数。第一次发现热点后，本机首次读取仍可能回源；smartSet 后再读应命中本地值。另一 JVM 不会因为本机填值就自动获得该值。用这组观察检验“传播的是热点键”的理解。</p>
+<h2>如何写实验记录</h2><p>每次记录源码提交、运行环境、规则、pushPeriod、worker 数量、请求速率、首次通知延迟和后端回源次数。此章提供的是复现方法，没有伪造一份执行结果。若结果不符，沿第二章链路逐段定位，保留日志后再修改参数。</p></section>

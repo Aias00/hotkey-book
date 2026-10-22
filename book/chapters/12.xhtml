@@ -1,0 +1,8 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第十二章 把源码理解变成维护能力</h1><p>阅读中间件的价值，是能解释一个现场现象并设计验证路径。看到缓存命中下降时，先问规则是否匹配、身份是否过期、默认值是否重置、业务是否正确填值，再检查网络与窗口。源码提供因果关系，监控提供当前证据。</p>
+<h2>一份实用的接入评审</h2><p>接入前写明键维度、规则、动作、允许陈旧时间和回源策略；接入后验证冷启动、重复推送、删除、worker 变更、配置失联和恢复。上线先选择能够承受回源的低风险流量，比较开启前后后端负载与业务结果，再逐步扩大。</p>
+<p>如果准备贡献改进，可以从三个具体问题出发：双集合交接的并发边界、窗口总和的数值边界、重复通知重置值的业务成本。每个修改都先给出可复现反例与期望语义，再比较性能。不要把“看起来线程安全”当成证据，也不要为了性能而隐去错误条件。</p>
+<h2>源码索引</h2><p>客户端启动：client/src/main/java/com/jd/platform/hotkey/client/ClientStarter.java。业务 API：同目录 callback/JdHotKeyStore.java。热点回调：callback/DefaultNewKeyListener.java。批次收集：core/key/TurnKeyCollector.java。消息发送：core/key/NettyKeyPusher.java。worker 选择：core/worker/WorkerInfoHolder.java。</p>
+<p>worker 接收：worker/src/main/java/com/jd/platform/hotkey/worker/netty/filter/HotKeyFilter.java。队列消费：keydispatcher/KeyConsumer.java。判热：keylistener/KeyListener.java。窗口：tool/SlidingWindow.java。规则：common/src/main/java/com/jd/platform/hotkey/common/rule/KeyRule.java。实验端点：sample/src/main/java/com/jd/platform/sample/controller/TestController.java。</p>
+<h2>术语速查</h2><p>热点身份：本地存在有效热点模型。业务值：应用加载并写入模型的数据。探测窗口：累计计数的时间范围。保留时长：热点模型有效时间。批次计数：客户端将同键调用合并后的数量。取模路由：按键 hash 与节点数选择位置。回源：本地不可用时访问原始数据源。</p>
+<h2>版权与版本说明</h2><p>本书是基于仓库的原创讲解，不是上游官方出版物。HotKey 工程及其代码遵循仓库 LICENSE 中的 Apache License 2.0，原作者权利与归属保持不变。书中的短代码示例用于解释接入行为。生成工具与本书新增内容随本仓库许可证提供。上游地址：https://gitee.com/jd-platform-opensource/hotkey。</p>
+<p>持续维护时，应把源码基线更新、内容核对、EPUB 校验和在线发布作为一次完整变更。阅读格式只是容器；可靠的书来自能让读者重新走通的证据链。</p></section>

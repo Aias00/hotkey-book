@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>第十章 故障时还剩下什么</title><link rel="stylesheet" href="style.css"/></head><body><main><nav><a href="index.html">目录</a><a href="09.html">← 上一章</a><a href="11.html">下一章 →</a></nav><section xmlns="http://www.w3.org/1999/xhtml"><h1>第十章 故障时还剩下什么</h1><p>热点探测属于保护链路，但保护链路自己也会失效。真正的可靠性来自理解失效后业务如何继续，而不是只确认进程有多个副本。把所有异常归结为“最多慢几秒”会忽视冷启动、回源洪峰和规则失联。</p>
+<h2>worker 下线</h2><p>成员列表减少后，取模映射发生变化，原窗口状态没有随键搬迁。临近阈值的键可能需要重新累积；已在客户端缓存的热点可在其生命周期内继续使用。若流量持续且足够高，重新判热可能很快，但不能保证每个键都无感。</p>
+<p>演练时先保持固定流量，记录各实例热点状态，再停止负责该键的 worker，观察节点发现、重连、首次重新判热和后端负载。停止前确认后端有承受临时回源的余量。不要在没有指标的情况下只看控制台节点变红就宣布演练完成。</p>
+<h2>etcd 与网络异常</h2><p>etcd 影响发现与规则传播。已经建立的直连可能仍能发送消息，但新节点发现、删除或规则更新不能据此保证正常。分别验证“断开配置中心”和“断开 worker 通道”，两者是不同故障。恢复连接之后还要检查状态收敛，而不只是 socket 重建。</p>
+<h2>缓存删除与并发写</h2><p>JdHotKeyStore.remove 本机删除后发通知，不能阻止正在回源的线程稍后 smartSet，也不提供带版本的全局写入顺序。若业务要求严格失效，应设计数据版本、更新事件或更强的一致性协议。对库存、余额等字段，仅依靠短 TTL 不能满足正确性要求。</p>
+<h2>异常兜底的双面性</h2><p>isHotKey 捕获异常返回 false，getValue 捕获异常返回 null，这让业务有机会回源继续服务，同时也可能让接入错误长期隐藏。业务侧要统计回源率、读取异常和热点变化；不要把“没有抛异常”理解成“保护有效”。</p>
+<h2>练习</h2><p>列出三个恢复指标：节点恢复可连接、规则恢复一致、后端负载恢复稳定。解释为什么第一个通过并不能证明另外两个也通过。</p></section><footer><nav><a href="index.html">目录</a><a href="09.html">← 上一章</a><a href="11.html">下一章 →</a></nav></footer></main></body></html>

@@ -1,0 +1,17 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第八章 部署一套可观察的实验环境</h1><p>实验环境包含 etcd、一个 worker、dashboard 所需 MySQL，以及嵌入 client 的 sample。先保持单 worker，确认链路，再扩为多节点。本章命令按仓库结构给出操作步骤，没有声称在所有 JDK、MySQL 和 etcd 版本上都已实机验证。</p>
+<h2>编译与启动顺序</h2><pre>./mvnw -DskipTests package
+# 先准备 etcd，确认本机 2379 可用。
+java -jar worker/target/worker-0.0.4-SNAPSHOT.jar \
+  --etcd.server=http://127.0.0.1:2379
+</pre><p>运行前以各模块 pom 和 target 实际产物名为准。根工程版本与子模块版本可能不同，不要机械地把根版本拼进 jar 名称。Java 编译目标为 1.8；依赖解析和插件兼容性需结合实际 JDK 检查。</p>
+<p>为 dashboard 创建 hotkey_db 并导入 dashboard/src/main/resources 下的 db.sql。通过 MYSQL_HOST、MYSQL_USER、MYSQL_PASS 指定实验数据库，再启动 dashboard。它的 HTTP 端口是 8081。worker Netty 默认端口是 11111，HTTP 端口是 8080；sample 是 9999。多个 worker 在同一主机时要分别配置端口与公布地址。</p>
+<h2>配置容易错在哪里</h2><p>worker 的 etcd.server 默认 http://127.0.0.1:2379，sample 文件中却默认 https://127.0.0.1:2379。若实验 etcd 未启用 TLS，应显式把 sample 配置为 http。连接失败时先检查协议，不能只核对 IP 和端口。</p>
+<p>worker 的 local.address 可通过 localAddress 指定，适合自动获取的地址无法从客户端访问的情况。etcd.workerPath 选择服务分组；应与客户端发现路径对应。worker 启动成功但客户端没有可用节点时，检查注册地址、网络可达性和分组，而不是先增加线程数。</p>
+<h2>初始化客户端</h2><pre>new ClientStarter.Builder()
+    .setAppName("sample")
+    .setEtcdServer("http://127.0.0.1:2379")
+    .setPushPeriod(100L)
+    .setCaffeineSize(20000)
+    .build()
+    .startPipeline();</pre><p>这是接入代码片段，需导入 com.jd.platform.hotkey.client.ClientStarter 并在应用启动阶段执行一次。不要在每个请求里启动 pipeline。控制台创建 app 和规则后，先验证 sample 连接和规则加载，再发送测试流量。</p>
+<h2>上线前要改变的默认值</h2><p>仓库的默认数据库口令和 README 描述的初始用户口令用于理解历史接入方式。实际部署应使用自己的账号、受控网络与凭据管理。对旧依赖的安全评估和升级属于部署工程；本书不把历史依赖版本描述为当前推荐版本。</p></section>

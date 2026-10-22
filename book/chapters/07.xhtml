@@ -1,0 +1,21 @@
+<section xmlns="http://www.w3.org/1999/xhtml"><h1>第七章 本地缓存的四种语义</h1><p>JdHotKeyStore 是业务最常接触的入口。理解它首先要区分两个状态：键已被识别为热点，以及键已有可用业务值。DefaultNewKeyListener 收到新增热点时创建 ValueModel.defaultValue，再写进本地缓存；这个默认模型建立了热点身份，却不是商品数据。</p>
+<h2>四个常用方法</h2><p>isHotKey 先检查是否命中规则，再检查热点身份；非热时上报，已热但临近过期时也上报，并记录命中统计。get 只取本地业务值，把内部魔数占位转换成 null。smartSet 只在本地已有热点模型时赋值。getValue 综合规则检查、本地读取、探测上报和统计，同样把占位值转换成 null。</p>
+<p>getValue 返回 null 可能表示未命中规则、尚未判热、已判热但尚未填值，也可能走到异常兜底。不要把 null 唯一解释为“这个键不热”。若限流只需要身份判断，使用 isHotKey；若需要缓存读取，使用 getValue 并准备回源。</p>
+<h2>缓存接入示例</h2><pre>import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
+
+// 示例：loadFromOrigin 由业务实现，处理自身的超时与异常。
+Object readProduct(String productId) {
+    String key = "sku__" + productId;
+    Object cached = JdHotKeyStore.getValue(key);
+    if (cached != null) {
+        return cached;
+    }
+    Object fresh = loadFromOrigin(productId);
+    if (fresh != null) {
+        JdHotKeyStore.smartSet(key, fresh);
+    }
+    return fresh;
+}</pre><p>非热点回源后 smartSet 不会强行把它变热。对于热点首次到达，各实例可能同时回源；此示例未加入加载合并。后端无法承受并发填充时，可在业务中加入每键并发控制、短时兜底或异步刷新，并测量等待上限。</p>
+<h2>续热与重复通知</h2><p>isNearExpire 用模型创建时间加 duration 与当前时间比较，剩余不超过两千毫秒时允许再次上报。热点并不是永不统计，而是在临期重新贡献探测。源码里的这项表达式应优先于附近“一秒”的旧注释。</p>
+<p>DefaultNewKeyListener 收到重复热点会记录警告，并重新构造默认模型。原业务值和过期时间可能被重置，所以重复通知并非对回源量绝对没有影响。实现业务加载逻辑时应容忍这种情况。remove 先删除本机缓存，再通过 HotKeyPusher 发出删除；它不是所有 JVM 同时完成删除的屏障。</p>
+<h2>练习</h2><p>在判热后、填值前暂停业务线程，观察 isHotKey 与 get 的不同返回结果。再触发重复通知，检查值是否需要重新加载。这个实验比只测单次命中更能揭示接入边界。</p></section>
