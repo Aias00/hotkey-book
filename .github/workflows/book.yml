@@ -23,6 +23,11 @@ jobs:
         with:
           python-version: '3.12'
       - run: python3 tools/build_book.py
+      - name: Validate EPUB 3
+        run: |
+          curl --fail --location --retry 3 -o /tmp/epubcheck.zip https://github.com/w3c/epubcheck/releases/download/v5.4.0/epubcheck-5.4.0.zip
+          unzip -q /tmp/epubcheck.zip -d /tmp/epubcheck
+          java -jar /tmp/epubcheck/epubcheck-5.4.0/epubcheck.jar docs/hotkey-sourcebook.epub
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
